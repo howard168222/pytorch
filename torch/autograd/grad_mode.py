@@ -41,6 +41,13 @@ def _can_eagerly_apply_function_mode() -> bool:
                 return False
             if next_instruction.opname in {"POP_TOP", "PRINT_EXPR"}:
                 return True
+            if (
+                next_instruction.opname == "CALL_INTRINSIC_1"
+                and next_instruction.argrepr == "INTRINSIC_PRINT"
+            ):
+                # Python 3.14 lowers `compile(..., mode="single")` to an
+                # intrinsic print instead of `PRINT_EXPR`.
+                return True
             if next_instruction.opname.startswith("STORE_"):
                 return next_instruction.argval == "_"
             if next_instruction.opname == "RETURN_VALUE":

@@ -559,7 +559,7 @@ class ExceptionVariable(VariableTracker):
     def __init__(
         self,
         exc_type: Any,
-        args: tuple[VariableTracker, ...],
+        args: list[VariableTracker],
         init_kwargs: dict[str, VariableTracker] | None = None,
         source: Source | None = None,
         mutation_type: MutationType | None = None,
@@ -630,7 +630,7 @@ class ExceptionVariable(VariableTracker):
         name = name_var.as_python_constant()
         if name == "__context__":
             # Constant can be either an Exceptior or None
-            assert isinstance(val, (ExceptionVariable, ConstantVariable))
+            assert isinstance(val, (ExceptionVariable, ConstantVariable)), f"{val}, {type(val)}"
             self.set_context(val)
         elif name == "__cause__":
             if val.is_constant_none() or isinstance(
@@ -700,7 +700,7 @@ class ExceptionVariable(VariableTracker):
         elif name == "__traceback__":
             return self.__traceback__
         elif name == "args":
-            return variables.ListVariable(list(self.args), source=self.source)
+            return VariableTracker.build(tx, self.args)
         return super().var_getattr(tx, name)
 
     def __str__(self) -> str:

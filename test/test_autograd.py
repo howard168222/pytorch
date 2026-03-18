@@ -5109,6 +5109,25 @@ SinBackward0, MulBackward0, torch::autograd::AccumulateGrad
         self.assertTrue(torch.autograd.is_view_replay_enabled())
 
         prev = torch.autograd.is_view_replay_enabled()
+        displayhook = sys.displayhook
+        try:
+            sys.displayhook = lambda value: None
+            exec(
+                compile(
+                    "torch.autograd._force_original_view_tracking("
+                    "not torch.autograd.is_view_replay_enabled())",
+                    "<test>",
+                    "single",
+                ),
+                {"torch": torch},
+            )
+        finally:
+            sys.displayhook = displayhook
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), not prev)
+        torch.autograd._force_original_view_tracking(prev)
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
+
+        prev = torch.autograd.is_view_replay_enabled()
         observed = None
 
         def identity():

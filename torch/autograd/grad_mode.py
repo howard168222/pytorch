@@ -36,7 +36,7 @@ def _can_eagerly_apply_function_mode() -> bool:
         next_instruction = instructions[index + 1] if index + 1 < len(instructions) else None
         if next_instruction is None:
             return False
-        if next_instruction.opname == "POP_TOP":
+        if next_instruction.opname in {"POP_TOP", "PRINT_EXPR"}:
             return True
         if next_instruction.opname.startswith("STORE_"):
             return next_instruction.argval == "_"

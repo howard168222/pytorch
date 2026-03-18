@@ -74,6 +74,7 @@ from torch.testing._internal.common_utils import (
     scoped_load_inline,
     set_warn_always_context,
     skipCUDANonDefaultStreamIf,
+    skipIfCrossRef,
     skipIfMPS,
     skipIfNoLapack,
     skipIfSlowGradcheckEnv,
@@ -5075,6 +5076,26 @@ SinBackward0, MulBackward0, torch::autograd::AccumulateGrad
             self.assertTrue(torch.autograd.is_view_replay_enabled())
         self.assertFalse(torch.autograd.is_view_replay_enabled())
 
+        # Test as a function
+        torch.autograd._force_original_view_tracking(False)
+        out = f(x)
+        self.assertTrue("AsStridedBackward" in str(out.grad_fn))
+        self.assertFalse(torch.autograd.is_view_replay_enabled())
+
+        torch.autograd._force_original_view_tracking(True)
+        out = f(x)
+        self.assertTrue("ViewBackward" in str(out.grad_fn))
+        self.assertTrue(torch.autograd.is_view_replay_enabled())
+
+    @skipIfTorchDynamo("relies on Python call-site bytecode inspection")
+    @skipIfCrossRef
+    def test_view_replay_enabled_callsite_detection(self):
+        def f(x):
+            out = x.clone().view(-1)
+            out.add_(1)
+            return out
+
+        x = torch.ones(2, 2, requires_grad=True)
         prev = torch.autograd.is_view_replay_enabled()
         ctx = torch.autograd._force_original_view_tracking(not prev)
         self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
@@ -5096,17 +5117,6 @@ SinBackward0, MulBackward0, torch::autograd::AccumulateGrad
         del ctx
         gc.collect()
         self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
-
-        # Test as a function
-        torch.autograd._force_original_view_tracking(False)
-        out = f(x)
-        self.assertTrue("AsStridedBackward" in str(out.grad_fn))
-        self.assertFalse(torch.autograd.is_view_replay_enabled())
-
-        torch.autograd._force_original_view_tracking(True)
-        out = f(x)
-        self.assertTrue("ViewBackward" in str(out.grad_fn))
-        self.assertTrue(torch.autograd.is_view_replay_enabled())
 
         prev = torch.autograd.is_view_replay_enabled()
         displayhook = sys.displayhook

@@ -3582,6 +3582,9 @@ class TestComposability(TestCase):
         ).decode("utf-8")
         self.assertEqual(out, "")
 
+    @skipIfTorchDynamo(
+        "currently tracked as a Dynamo expected failure in CI; skip until the registry is cleaned up"
+    )
     def test_requires_grad_inside_transform(self, device):
         def f(x):
             x.requires_grad_()

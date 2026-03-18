@@ -5087,6 +5087,16 @@ SinBackward0, MulBackward0, torch::autograd::AccumulateGrad
             )
         self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
 
+        ctx = torch.autograd._force_original_view_tracking(not prev)
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
+        torch.autograd._force_original_view_tracking(not prev)
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), not prev)
+        torch.autograd._force_original_view_tracking(prev)
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
+        del ctx
+        gc.collect()
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
+
         # Test as a function
         torch.autograd._force_original_view_tracking(False)
         out = f(x)

@@ -1,4 +1,6 @@
 # mypy: allow-untyped-defs
+import dis
+import sys
 from typing import Any
 
 import torch
@@ -16,6 +18,31 @@ __all__ = [
     "inference_mode",
     "set_multithreading_enabled",
 ]
+
+
+def _can_eagerly_apply_function_mode() -> bool:
+    # Look at the caller's next instruction so the bare function form stays
+    # eager, but decorator/`with` construction remains side-effect free.
+    try:
+        frame = sys._getframe(2)
+    except ValueError:
+        return False
+
+    instructions = list(dis.get_instructions(frame.f_code))
+    for index, instruction in enumerate(instructions):
+        if instruction.offset != frame.f_lasti:
+            continue
+
+        next_instruction = instructions[index + 1] if index + 1 < len(instructions) else None
+        if next_instruction is None:
+            return False
+        if next_instruction.opname == "POP_TOP":
+            return True
+        if next_instruction.opname.startswith("STORE_"):
+            return next_instruction.argval == "_"
+        return False
+
+    return False
 
 
 class no_grad(_NoParamDecoratorContextManager):
@@ -375,23 +402,14 @@ class _force_original_view_tracking(_DecoratorContextManager):
     """
 
     def __init__(self, mode: bool) -> None:
-        # Defer mutation until the instance is actually used so construction does
-        # not leak state to sibling decorator factories or before a later `with`.
         self.mode = mode
         self.prev = False
-        self._used = False
-
-    def __del__(self) -> None:
-        torch_c = getattr(torch, "_C", None)
-        if not self._used and torch_c is not None:
-            torch_c._set_view_replay_enabled(self.mode)
-
-    def __call__(self, orig_func: F) -> F:
-        self._used = True
-        return super().__call__(orig_func)
+        # Keep decorator and `with` construction side-effect free. Only the
+        # plain function form eagerly mutates when the call result is dropped.
+        if _can_eagerly_apply_function_mode():
+            torch._C._set_view_replay_enabled(mode)
 
     def __enter__(self) -> None:
-        self._used = True
         self.prev = torch._C._is_view_replay_enabled()
         torch._C._set_view_replay_enabled(self.mode)
 

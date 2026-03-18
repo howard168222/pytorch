@@ -297,9 +297,9 @@ def _sub_unbacked_exprs(shape_env: ShapeEnv, expr: sympy.Expr) -> sympy.Expr:
         new_expr = expr.subs(replacements)
         if new_expr == expr:
             break
-        # Limit sympy.factor() to expressions with <= 200 free symbols,
+        # Limit sympy.factor() to expressions with <= 50 free symbols,
         # as factoring polynomials with many variables is expensive.
-        if len(new_expr.free_symbols) <= 200:
+        if len(new_expr.free_symbols) <= 50:
             expr = sympy.factor(new_expr)
         else:
             expr = new_expr
@@ -391,9 +391,9 @@ def _optimization_hint_base(
     if has_free_unbacked_symbols(expr):
         # Make sure to substitute with the factored version
         # e.g. 10*(s0 + u0) instead of 10*s0 + 10*u0
-        # Limit sympy.factor() to expressions with <= 200 free symbols,
+        # Limit sympy.factor() to expressions with <= 50 free symbols,
         # as factoring polynomials with many variables is expensive.
-        if isinstance(original, sympy.Expr) and len(original.free_symbols) <= 200:
+        if isinstance(original, sympy.Expr) and len(original.free_symbols) <= 50:
             original = sympy.factor(original)
         expr = _sub_unbacked_exprs(shape_env, original)
 

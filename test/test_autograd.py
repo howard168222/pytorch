@@ -5128,6 +5128,22 @@ SinBackward0, MulBackward0, torch::autograd::AccumulateGrad
         self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
 
         prev = torch.autograd.is_view_replay_enabled()
+
+        def enable_via_wrapper():
+            return torch.autograd._force_original_view_tracking(not prev)
+
+        enable_via_wrapper()
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), not prev)
+        torch.autograd._force_original_view_tracking(prev)
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
+
+        ctx = enable_via_wrapper()
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
+        with ctx:
+            self.assertEqual(torch.autograd.is_view_replay_enabled(), not prev)
+        self.assertEqual(torch.autograd.is_view_replay_enabled(), prev)
+
+        prev = torch.autograd.is_view_replay_enabled()
         observed = None
 
         def identity():

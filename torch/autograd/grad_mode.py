@@ -28,19 +28,29 @@ def _can_eagerly_apply_function_mode() -> bool:
     except ValueError:
         return False
 
-    instructions = list(dis.get_instructions(frame.f_code))
-    for index, instruction in enumerate(instructions):
-        if instruction.offset != frame.f_lasti:
-            continue
+    while frame is not None:
+        instructions = list(dis.get_instructions(frame.f_code))
+        for index, instruction in enumerate(instructions):
+            if instruction.offset != frame.f_lasti:
+                continue
 
-        next_instruction = instructions[index + 1] if index + 1 < len(instructions) else None
-        if next_instruction is None:
+            next_instruction = (
+                instructions[index + 1] if index + 1 < len(instructions) else None
+            )
+            if next_instruction is None:
+                return False
+            if next_instruction.opname in {"POP_TOP", "PRINT_EXPR"}:
+                return True
+            if next_instruction.opname.startswith("STORE_"):
+                return next_instruction.argval == "_"
+            if next_instruction.opname == "RETURN_VALUE":
+                # Direct wrapper helpers should inherit the outer call site's
+                # function-vs-decorator/`with` behavior.
+                frame = frame.f_back
+                break
             return False
-        if next_instruction.opname in {"POP_TOP", "PRINT_EXPR"}:
-            return True
-        if next_instruction.opname.startswith("STORE_"):
-            return next_instruction.argval == "_"
-        return False
+        else:
+            return False
 
     return False
 
